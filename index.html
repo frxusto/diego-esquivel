@@ -84,7 +84,12 @@
     border-bottom-color:var(--gold-line);padding-block:12px;
   }
   .brand{font-family:"Playfair Display",serif;font-size:19px;letter-spacing:.14em;color:var(--gold);font-weight:600}
-  .brand small{color:var(--muted);font-family:"Poppins";font-size:10px;letter-spacing:.3em;display:block;margin-top:-2px}
+  .brand small{color:var(--muted);font-family:"Poppins";font-size:10px;letter-spacing:.3em;display:block;margin-top:3px}
+  /* ---- official logo (transparent PNG wordmark) ---- */
+  .brand-logo{height:30px;width:auto;display:block;filter:drop-shadow(0 2px 8px rgba(0,0,0,.5))}
+  .foot .brand-logo{height:34px}
+  .hero-logo{width:min(72%,440px);height:auto;display:block;filter:drop-shadow(0 6px 34px rgba(201,162,74,.30))}
+  @media(max-width:520px){.hero-logo{width:min(86%,300px)}}
   .nav-links{display:flex;gap:30px;align-items:center}
   .nav-links a{font-size:13px;letter-spacing:.04em;color:var(--text-2);position:relative;transition:color .3s}
   .nav-links a::after{content:"";position:absolute;left:0;bottom:-5px;width:0;height:1px;background:var(--gold);transition:width .35s var(--ease)}
@@ -128,46 +133,30 @@
   /* ============ HERO ============ */
   .hero{min-height:100vh;display:flex;align-items:center;padding-top:110px;padding-bottom:60px;overflow:hidden}
 
-  /* ---- golden bokeh ambience behind the hero (fills the void left by the old orb) ---- */
-  .hero-fx{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden}
-  /* warm glow concentrated behind the portrait (right side), dissolving into the black */
+  /* ---- fine golden grain rising out of pure black (left) into a warm gold field (right) ---- */
+  .hero-fx{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;background:var(--black)}
+  /* warm champagne glow concentrated behind the portrait (right), melting into the black */
   .hero-fx::before{
-    content:"";position:absolute;inset:0;
+    content:"";position:absolute;inset:0;z-index:0;
     background:
-      radial-gradient(42% 52% at 74% 42%,rgba(229,201,123,.22),rgba(201,162,74,.07) 46%,transparent 72%),
-      radial-gradient(72% 82% at 80% 58%,rgba(201,162,74,.10),transparent 72%),
-      radial-gradient(120% 82% at 50% 118%,rgba(201,162,74,.05),transparent 60%);
-    filter:blur(4px);
-    animation:glowPulse 9s ease-in-out infinite;
+      radial-gradient(48% 58% at 74% 45%,rgba(229,201,123,.20),rgba(201,162,74,.06) 46%,transparent 72%),
+      radial-gradient(84% 92% at 82% 60%,rgba(201,162,74,.09),transparent 70%),
+      radial-gradient(120% 80% at 60% 116%,rgba(201,162,74,.045),transparent 60%);
+    animation:glowPulse 10s ease-in-out infinite;
   }
-  /* floating golden particles / bokeh — pure CSS, twinkle + slow drift */
+  /* dense ultra-fine gold glitter: SVG feTurbulence fractalNoise -> tinted #C9A24A via feColorMatrix,
+     then masked so the grain is invisible at the left and intensifies toward the right / behind Diego */
   .hero-fx::after{
-    content:"";position:absolute;inset:-6%;
-    background-repeat:no-repeat;
-    background-image:
-      radial-gradient(circle,rgba(229,201,123,.85) 0,rgba(229,201,123,0) 72%),
-      radial-gradient(circle,rgba(229,201,123,.65) 0,rgba(229,201,123,0) 72%),
-      radial-gradient(circle,rgba(229,201,123,.60) 0,rgba(229,201,123,0) 72%),
-      radial-gradient(circle,rgba(201,162,74,.50) 0,rgba(201,162,74,0) 72%),
-      radial-gradient(circle,rgba(229,201,123,.80) 0,rgba(229,201,123,0) 72%),
-      radial-gradient(circle,rgba(229,201,123,.50) 0,rgba(229,201,123,0) 72%),
-      radial-gradient(circle,rgba(229,201,123,.75) 0,rgba(229,201,123,0) 72%),
-      radial-gradient(circle,rgba(229,201,123,.15) 0,rgba(229,201,123,0) 66%),
-      radial-gradient(circle,rgba(201,162,74,.11) 0,rgba(201,162,74,0) 66%),
-      radial-gradient(circle,rgba(229,201,123,.12) 0,rgba(229,201,123,0) 66%),
-      radial-gradient(circle,rgba(229,201,123,.12) 0,rgba(229,201,123,0) 66%),
-      radial-gradient(circle,rgba(201,162,74,.09) 0,rgba(201,162,74,0) 66%);
-    background-position:
-      77% 27%,85% 41%,68% 57%,90% 33%,61% 30%,73% 77%,82% 19%,
-      45% 37%,33% 63%,87% 60%,25% 45%,64% 46%;
-    background-size:
-      4px 4px,3px 3px,3px 3px,3px 3px,2px 2px,4px 4px,2px 2px,
-      70px 70px,90px 90px,120px 120px,55px 55px,150px 150px;
-    animation:bokehDrift 26s ease-in-out infinite alternate,bokehTwinkle 7.5s ease-in-out infinite;
+    content:"";position:absolute;inset:0;z-index:1;opacity:.62;mix-blend-mode:screen;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1600' height='1000'><filter id='gg' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' seed='7' stitchTiles='stitch' result='n'/><feColorMatrix in='n' type='matrix' values='0 0 0 0 0.792 0 0 0 0 0.639 0 0 0 0 0.298 3.4 0 0 0 -1.55'/></filter><rect width='100%25' height='100%25' filter='url(%23gg)'/></svg>");
+    background-size:150% 150%;background-position:50% 50%;
+    -webkit-mask-image:linear-gradient(90deg,transparent 0%,transparent 34%,#000 100%);
+            mask-image:linear-gradient(90deg,transparent 0%,transparent 34%,#000 100%);
+    animation:grainShimmer 6.5s ease-in-out infinite, grainWave 24s ease-in-out infinite;
   }
-  @keyframes bokehDrift{from{transform:translate3d(0,0,0)}to{transform:translate3d(-12px,-22px,0)}}
-  @keyframes bokehTwinkle{0%,100%{opacity:.72}50%{opacity:1}}
-  @keyframes glowPulse{0%,100%{opacity:.85;transform:scale(1)}50%{opacity:1;transform:scale(1.03)}}
+  @keyframes grainShimmer{0%,100%{opacity:.54}50%{opacity:.7}}
+  @keyframes grainWave{0%,100%{background-position:46% 47%}25%{background-position:52% 45%}50%{background-position:54% 53%}75%{background-position:47% 51%}}
+  @keyframes glowPulse{0%,100%{opacity:.9;transform:scale(1)}50%{opacity:1;transform:scale(1.02)}}
 
   .hero-grid{position:relative;z-index:1;display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(30px,5vw,72px);align-items:center;width:100%}
   .hero-word{
@@ -402,7 +391,7 @@
 
 <!-- ===== NAV ===== -->
 <header class="nav" id="nav">
-  <div class="brand">DIEGO ESQUIVEL<small data-i18n="brand.tagline">LIFESTYLE &amp; FINANÇAS</small></div>
+  <div class="brand"><img class="brand-logo" src="https://cdn.prod.website-files.com/69bec3461df6b08e5f7d65c6/69cd7151894dc3d393ce98c3_Dise%C3%B1o%20sin%20t%C3%ADtulo%20(19).png" alt="Diego Esquivel"><small data-i18n="brand.tagline">LIFESTYLE &amp; FINANÇAS</small></div>
   <nav class="nav-links" aria-label="Navegação principal">
     <a href="#sobre" data-i18n="nav.about">Sobre mim</a>
     <a href="#viagens" data-i18n="nav.travels">Viagens</a>
@@ -426,7 +415,7 @@
   <div class="hero-grid">
     <div class="hero-copy">
       <p class="eyebrow reveal" data-i18n="hero.eyebrow">Assessor financeiro · Parcerias internacionais</p>
-      <h1 class="hero-word reveal d1"><span class="shimmer">DIEGO</span><span class="l2">Esquivel</span></h1>
+      <h1 class="hero-word reveal d1"><img class="hero-logo" src="https://cdn.prod.website-files.com/69bec3461df6b08e5f7d65c6/69cd7151894dc3d393ce98c3_Dise%C3%B1o%20sin%20t%C3%ADtulo%20(19).png" alt="Diego Esquivel"></h1>
       <p class="sub reveal d2" data-i18n="hero.sub">Formado em Administração de Empresas, com mais de 7 anos de experiência no mercado financeiro. Especialista na formulação de estratégias de captação e na estruturação de parcerias.</p>
       <div class="hero-cta reveal d3">
         <a class="btn" href="#"><svg class="ic"><use href="#i-wa"/></svg><span data-i18n="hero.cta">Conecte-se comigo</span></a>
@@ -577,7 +566,7 @@
 <!-- ===== FOOTER ===== -->
 <footer>
   <div class="wrap foot">
-    <div class="brand">DIEGO ESQUIVEL<small data-i18n="brand.tagline">LIFESTYLE &amp; FINANÇAS</small></div>
+    <div class="brand"><img class="brand-logo" src="https://cdn.prod.website-files.com/69bec3461df6b08e5f7d65c6/69cd7151894dc3d393ce98c3_Dise%C3%B1o%20sin%20t%C3%ADtulo%20(19).png" alt="Diego Esquivel"><small data-i18n="brand.tagline">LIFESTYLE &amp; FINANÇAS</small></div>
     <div class="fmeta" data-i18n="footer.meta">© 2026 Diego Esquivel · Estratégias de captação &amp; parcerias internacionais</div>
     <a class="up" href="#topo"><span data-i18n="footer.up">Voltar ao topo</span><svg class="ic"><use href="#i-up"/></svg></a>
   </div>
