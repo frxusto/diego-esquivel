@@ -325,6 +325,25 @@
   .ccard p{color:var(--text-2);font-size:14px;margin:0 0 24px;max-width:40ch}
   @media(max-width:860px){.contact-grid{grid-template-columns:1fr}}
 
+  /* ===== Cursor-glow dorado (port de MagicBento: SOLO spotlight + borde por proximidad, sin partículas) ===== */
+  .glow-card{position:relative;--glow-x:50%;--glow-y:50%;--glow-i:0}
+  .glow-card::after{
+    content:"";position:absolute;inset:0;border-radius:inherit;padding:1.5px;z-index:3;pointer-events:none;
+    opacity:var(--glow-i);transition:opacity .35s ease;
+    background:radial-gradient(240px circle at var(--glow-x) var(--glow-y),
+      rgba(229,201,123,.85),rgba(201,162,74,.30) 38%,transparent 66%);
+    -webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
+            mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
+    -webkit-mask-composite:xor;mask-composite:exclude;
+  }
+  .cursor-spot{
+    position:fixed;left:0;top:0;width:500px;height:500px;border-radius:50%;pointer-events:none;
+    z-index:6;opacity:0;transform:translate(-50%,-50%);mix-blend-mode:screen;
+    transition:opacity .4s ease;will-change:transform,opacity;
+    background:radial-gradient(circle,rgba(229,201,123,.13),rgba(229,201,123,.05) 32%,transparent 60%);
+  }
+  @media(prefers-reduced-motion:reduce){.glow-card::after,.cursor-spot{display:none}}
+
   .social-bar{display:flex;flex-wrap:wrap;gap:14px;margin-top:52px;justify-content:center}
   .social{
     display:inline-flex;align-items:center;gap:12px;padding:14px 22px;border-radius:14px;
@@ -784,6 +803,43 @@
       if(e.key === "Enter" || e.key === " "){ e.preventDefault(); f.click(); }
     });
   });
+
+  /* ===== Cursor-glow dorado sobre tarjetas (.pillar / .role) — port vanilla de MagicBento (sin GSAP, sin partículas) ===== */
+  (function initCardGlow(){
+    if(matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if(matchMedia("(max-width: 768px)").matches) return; /* off en móvil, igual que el componente */
+    var cards = Array.prototype.slice.call(document.querySelectorAll(".pillar, .role"));
+    if(!cards.length) return;
+    cards.forEach(function(c){ c.classList.add("glow-card"); });
+
+    var spot = document.createElement("div");
+    spot.className = "cursor-spot";
+    spot.setAttribute("aria-hidden","true");
+    document.body.appendChild(spot);
+
+    var PROX = 70, FADE = 320; /* px al borde de la card: <=PROX borde full, hasta FADE se desvanece (glow suave en las vecinas) */
+    function onMove(e){
+      var mx = e.clientX, my = e.clientY, near = false;
+      for(var i=0;i<cards.length;i++){
+        var r = cards[i].getBoundingClientRect();
+        var d = Math.hypot(mx-(r.left+r.width/2), my-(r.top+r.height/2)) - Math.max(r.width,r.height)/2;
+        if(d<0) d=0;
+        var gi = d<=PROX ? 1 : (d<=FADE ? (FADE-d)/(FADE-PROX) : 0);
+        var s = cards[i].style;
+        s.setProperty("--glow-i", gi.toFixed(3));
+        s.setProperty("--glow-x", (((mx-r.left)/r.width)*100).toFixed(1)+"%");
+        s.setProperty("--glow-y", (((my-r.top)/r.height)*100).toFixed(1)+"%");
+        if(gi>0.01) near = true;
+      }
+      spot.style.left = mx+"px"; spot.style.top = my+"px";
+      spot.style.opacity = near ? "1" : "0";
+    }
+    window.addEventListener("mousemove", onMove, {passive:true});
+    document.addEventListener("mouseleave", function(){
+      spot.style.opacity = "0";
+      cards.forEach(function(c){ c.style.setProperty("--glow-i","0"); });
+    });
+  })();
 
   /* ============ i18n  PT (default) / ES / EN ============ */
   var I18N = {
