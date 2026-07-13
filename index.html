@@ -133,29 +133,19 @@
   /* ============ HERO ============ */
   .hero{min-height:100vh;display:flex;align-items:center;padding-top:110px;padding-bottom:60px;overflow:hidden}
 
-  /* ---- fine golden grain rising out of pure black (left) into a warm gold field (right) ---- */
+  /* ---- animated golden volumetric light rays (WebGL "SideRays") over pure black ---- */
   .hero-fx{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;background:var(--black)}
-  /* warm champagne glow concentrated behind the portrait (right), melting into the black */
+  /* WebGL canvas fills the whole hero; screen-blend so the gold rays glow out of the black */
+  .hero-rays{position:absolute;inset:0;z-index:1;width:100%;height:100%;display:block;pointer-events:none;mix-blend-mode:screen}
+  /* warm champagne base glow for depth (also the WebGL fallback tint), sitting under the rays */
   .hero-fx::before{
     content:"";position:absolute;inset:0;z-index:0;
     background:
-      radial-gradient(48% 58% at 74% 45%,rgba(229,201,123,.20),rgba(201,162,74,.06) 46%,transparent 72%),
-      radial-gradient(84% 92% at 82% 60%,rgba(201,162,74,.09),transparent 70%),
-      radial-gradient(120% 80% at 60% 116%,rgba(201,162,74,.045),transparent 60%);
+      radial-gradient(48% 58% at 74% 45%,rgba(229,201,123,.13),rgba(201,162,74,.05) 46%,transparent 72%),
+      radial-gradient(84% 92% at 82% 60%,rgba(201,162,74,.07),transparent 70%),
+      radial-gradient(120% 80% at 60% 116%,rgba(201,162,74,.04),transparent 60%);
     animation:glowPulse 10s ease-in-out infinite;
   }
-  /* dense ultra-fine gold glitter: SVG feTurbulence fractalNoise -> tinted #C9A24A via feColorMatrix,
-     then masked so the grain is invisible at the left and intensifies toward the right / behind Diego */
-  .hero-fx::after{
-    content:"";position:absolute;inset:0;z-index:1;opacity:.62;mix-blend-mode:screen;
-    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1600' height='1000'><filter id='gg' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' seed='7' stitchTiles='stitch' result='n'/><feColorMatrix in='n' type='matrix' values='0 0 0 0 0.792 0 0 0 0 0.639 0 0 0 0 0.298 3.4 0 0 0 -1.55'/></filter><rect width='100%25' height='100%25' filter='url(%23gg)'/></svg>");
-    background-size:150% 150%;background-position:50% 50%;
-    -webkit-mask-image:linear-gradient(90deg,transparent 0%,transparent 34%,#000 100%);
-            mask-image:linear-gradient(90deg,transparent 0%,transparent 34%,#000 100%);
-    animation:grainShimmer 6.5s ease-in-out infinite, grainWave 24s ease-in-out infinite;
-  }
-  @keyframes grainShimmer{0%,100%{opacity:.54}50%{opacity:.7}}
-  @keyframes grainWave{0%,100%{background-position:46% 47%}25%{background-position:52% 45%}50%{background-position:54% 53%}75%{background-position:47% 51%}}
   @keyframes glowPulse{0%,100%{opacity:.9;transform:scale(1)}50%{opacity:1;transform:scale(1.02)}}
 
   .hero-grid{position:relative;z-index:1;display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(30px,5vw,72px);align-items:center;width:100%}
@@ -411,7 +401,7 @@
 
 <!-- ===== HERO ===== -->
 <section class="hero wrap" id="topo">
-  <div class="hero-fx" aria-hidden="true"></div>
+  <div class="hero-fx" aria-hidden="true"><canvas class="hero-rays"></canvas></div>
   <div class="hero-grid">
     <div class="hero-copy">
       <p class="eyebrow reveal" data-i18n="hero.eyebrow">Assessor financeiro · Parcerias internacionais</p>
@@ -638,6 +628,154 @@
       });
     }, {passive:true});
   }
+
+  /* ============ HERO — golden volumetric light rays (WebGL "SideRays") ============ */
+  (function initRays(){
+    var canvas = document.querySelector(".hero-rays");
+    var heroFx = document.querySelector(".hero-fx");
+    if(!canvas || !heroFx) return;
+
+    /* Fallback: warm golden radial glow so the hero still looks premium without WebGL */
+    function fallback(){
+      canvas.style.display = "none";
+      heroFx.style.background =
+        "radial-gradient(68% 82% at 80% 34%,rgba(229,201,123,.22),rgba(201,162,74,.07) 46%,transparent 72%),"+
+        "radial-gradient(120% 90% at 86% 62%,rgba(201,162,74,.10),transparent 70%),"+
+        "var(--black)";
+    }
+
+    var gl = null;
+    try{
+      var opts = {alpha:true, premultipliedAlpha:false, antialias:true, depth:false, stencil:false};
+      gl = canvas.getContext("webgl", opts) || canvas.getContext("experimental-webgl", opts);
+    }catch(err){ gl = null; }
+    if(!gl){ fallback(); return; }
+
+    var VERT = "attribute vec2 position; void main(){ gl_Position = vec4(position,0.0,1.0); }";
+    var FRAG = [
+      "precision highp float;",
+      "uniform float iTime; uniform vec2 iResolution; uniform float iSpeed;",
+      "uniform vec3 iRayColor1; uniform vec3 iRayColor2; uniform float iIntensity;",
+      "uniform float iSpread; uniform float iFlipX; uniform float iFlipY; uniform float iTilt;",
+      "uniform float iSaturation; uniform float iBlend; uniform float iFalloff; uniform float iOpacity;",
+      "float rayStrength(vec2 raySource, vec2 rayRefDirection, vec2 coord, float seedA, float seedB, float speed){",
+      "  vec2 sourceToCoord = coord - raySource;",
+      "  float cosAngle = dot(normalize(sourceToCoord), rayRefDirection);",
+      "  return clamp((0.45+0.15*sin(cosAngle*seedA+iTime*speed))+(0.3+0.2*cos(-cosAngle*seedB+iTime*speed)),0.0,1.0)",
+      "    * clamp((iResolution.x-length(sourceToCoord))/iResolution.x,0.5,1.0);",
+      "}",
+      "void main(){",
+      "  vec2 fragCoord = gl_FragCoord.xy;",
+      "  if(iFlipX>0.5) fragCoord.x = iResolution.x - fragCoord.x;",
+      "  if(iFlipY>0.5) fragCoord.y = iResolution.y - fragCoord.y;",
+      "  vec2 coord = vec2(fragCoord.x, iResolution.y - fragCoord.y);",
+      "  vec2 rayPos = vec2(iResolution.x*1.1, -0.5*iResolution.y);",
+      "  float tiltRad = iTilt*3.14159265/180.0; float cs=cos(tiltRad); float sn=sin(tiltRad);",
+      "  vec2 rel = coord-rayPos;",
+      "  vec2 tiltedCoord = vec2(rel.x*cs-rel.y*sn, rel.x*sn+rel.y*cs)+rayPos;",
+      "  float halfSpread = iSpread*0.275;",
+      "  vec2 d1 = normalize(vec2(cos(0.785398+halfSpread), sin(0.785398+halfSpread)));",
+      "  vec2 d2 = normalize(vec2(cos(0.785398-halfSpread), sin(0.785398-halfSpread)));",
+      "  vec4 r1 = vec4(iRayColor1,1.0)*rayStrength(rayPos,d1,tiltedCoord,36.2214,21.11349,iSpeed);",
+      "  vec4 r2 = vec4(iRayColor2,1.0)*rayStrength(rayPos,d2,tiltedCoord,22.3991,18.0234,iSpeed*0.2);",
+      "  vec4 color = r1*(1.0-iBlend)*0.9 + r2*iBlend*0.9;",
+      "  float distToLight = length(fragCoord.xy - vec2(rayPos.x, iResolution.y-rayPos.y))/iResolution.y;",
+      "  float brightness = iIntensity*0.4/pow(max(distToLight,0.001), iFalloff);",
+      "  color.rgb *= brightness;",
+      "  float gray = dot(color.rgb, vec3(0.299,0.587,0.114));",
+      "  color.rgb = mix(vec3(gray), color.rgb, iSaturation);",
+      "  color.a = max(color.r, max(color.g, color.b))*iOpacity;",
+      "  gl_FragColor = color;",
+      "}"
+    ].join("\n");
+
+    function compile(type, src){
+      var s = gl.createShader(type);
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)){ gl.deleteShader(s); return null; }
+      return s;
+    }
+    var vs = compile(gl.VERTEX_SHADER, VERT);
+    var fs = compile(gl.FRAGMENT_SHADER, FRAG);
+    if(!vs || !fs){ fallback(); return; }
+    var program = gl.createProgram();
+    gl.attachShader(program, vs);
+    gl.attachShader(program, fs);
+    gl.linkProgram(program);
+    if(!gl.getProgramParameter(program, gl.LINK_STATUS)){ fallback(); return; }
+    gl.useProgram(program);
+
+    /* fullscreen triangle */
+    var posLoc = gl.getAttribLocation(program, "position");
+    var buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(posLoc);
+    gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+    function U(n){ return gl.getUniformLocation(program, n); }
+    var uTime = U("iTime"), uRes = U("iResolution");
+
+    /* --- golden config (no blue): origin top-right, behind the portrait --- */
+    gl.uniform1f(U("iSpeed"), 1.8);
+    gl.uniform3f(U("iRayColor1"), 0.898, 0.788, 0.482); /* #E5C97B champagne */
+    gl.uniform3f(U("iRayColor2"), 0.788, 0.635, 0.290); /* #C9A24A deep gold */
+    gl.uniform1f(U("iIntensity"), 1.5);
+    gl.uniform1f(U("iSpread"), 2.0);
+    gl.uniform1f(U("iFlipX"), 0.0);
+    gl.uniform1f(U("iFlipY"), 0.0);
+    gl.uniform1f(U("iTilt"), 0.0);
+    gl.uniform1f(U("iSaturation"), 1.3);
+    gl.uniform1f(U("iBlend"), 0.5);
+    gl.uniform1f(U("iFalloff"), 1.6);
+    gl.uniform1f(U("iOpacity"), 0.8);
+
+    gl.clearColor(0.0, 0.0, 0.0, 0.0);
+
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    function resize(){
+      var r = heroFx.getBoundingClientRect();
+      var w = Math.max(1, Math.round(r.width));
+      var h = Math.max(1, Math.round(r.height));
+      var cw = Math.round(w*dpr), ch = Math.round(h*dpr);
+      if(canvas.width !== cw || canvas.height !== ch){ canvas.width = cw; canvas.height = ch; }
+      canvas.style.width = w + "px";
+      canvas.style.height = h + "px";
+    }
+    function draw(tSec){
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.uniform1f(uTime, tSec);
+      gl.uniform2f(uRes, canvas.width, canvas.height);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    }
+
+    var rafId = null;
+    function frame(){ draw(performance.now()*0.001); rafId = requestAnimationFrame(frame); }
+    function start(){ if(rafId === null) rafId = requestAnimationFrame(frame); }
+    function stop(){ if(rafId !== null){ cancelAnimationFrame(rafId); rafId = null; } }
+
+    resize();
+
+    if(reduce){
+      draw(2.0); /* one elegant static frame, no animation */
+    } else {
+      start();
+      if("IntersectionObserver" in window){
+        var vo = new IntersectionObserver(function(entries){
+          entries.forEach(function(e){ if(e.isIntersecting) start(); else stop(); });
+        }, {threshold:0});
+        vo.observe(heroFx);
+      }
+    }
+
+    window.addEventListener("resize", function(){
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      resize();
+      if(reduce) draw(2.0);
+    }, {passive:true});
+  })();
 
   /* Video frames: allow keyboard activation (embeds are pasted manually) */
   document.querySelectorAll(".video-frame[role='button']").forEach(function(f){
