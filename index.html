@@ -448,7 +448,7 @@
 <section class="wrap section-pad" id="filme" style="padding-top:clamp(20px,4vw,60px)">
   <p class="eyebrow reveal" data-i18n="film.eyebrow">Brand film</p>
   <h2 class="h-sec reveal d1" style="margin-bottom:34px" data-i18n="film.title">Conheça <span class="shimmer">Diego</span></h2>
-  <div class="video-frame reveal d2" role="button" tabindex="0" aria-label="Reproduzir brand film Conheça Diego">
+  <div class="video-frame reveal d2" role="button" tabindex="0" aria-label="Reproduzir brand film Conheça Diego" data-embed="https://adilo.bigcommand.com/watch/v1yBCavn?autoplay=1">
     <img class="poster" src="https://cdn.prod.website-files.com/69bec3461df6b08e5f7d65c6/69ca8ba6b3b3b7135885fe0b_Dubai%202.jpg" alt="" loading="lazy" />
     <div class="vcontent">
       <div class="play"><svg viewBox="0 0 24 24"><use href="#i-play"/></svg></div>
@@ -457,9 +457,7 @@
         <div class="vsmall" style="margin-top:6px" data-i18n="video.play">Play para assistir</div>
       </div>
     </div>
-    <!-- VIDEO 1: pegar embed aquí (YouTube/Vimeo o <video>). Ej:
-    <iframe class="video-embed" src="https://www.youtube.com/embed/XXXX" title="Conheça Diego" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>
-    -->
+    <!-- VIDEO 1: Adilo embed cableado en data-embed de .video-frame (click-to-play) -->
   </div>
 </section>
 
@@ -797,10 +795,25 @@
     }, {passive:true});
   })();
 
-  /* Video frames: allow keyboard activation (embeds are pasted manually) */
+  /* Video frames: click/teclado inyecta el iframe del embed (façade click-to-play) */
   document.querySelectorAll(".video-frame[role='button']").forEach(function(f){
+    function play(){
+      var src = f.getAttribute("data-embed");
+      if(!src || f.dataset.playing){ return; }
+      f.dataset.playing = "1";
+      var ifr = document.createElement("iframe");
+      ifr.className = "video-embed";
+      ifr.src = src;
+      ifr.title = f.getAttribute("aria-label") || "Video";
+      ifr.setAttribute("frameborder","0");
+      ifr.setAttribute("allow","autoplay; fullscreen; picture-in-picture; encrypted-media");
+      ifr.setAttribute("allowfullscreen","");
+      f.innerHTML = "";
+      f.appendChild(ifr);
+    }
+    f.addEventListener("click", play);
     f.addEventListener("keydown", function(e){
-      if(e.key === "Enter" || e.key === " "){ e.preventDefault(); f.click(); }
+      if(e.key === "Enter" || e.key === " "){ e.preventDefault(); play(); }
     });
   });
 
